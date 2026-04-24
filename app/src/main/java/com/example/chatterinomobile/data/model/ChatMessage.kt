@@ -9,6 +9,7 @@ data class ChatMessage(
     val id: String,
     val channelId: String,
     val author : ChatUser,
+    val reply: ReplyMetadata? = null,
     val fragment: List<MessageFragment>,
     val badges: List<Badge> = emptyList(),
     val timestamp: Long,

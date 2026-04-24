@@ -12,6 +12,11 @@ data class SevenTvEmoteSetDto(
 )
 
 @Serializable
+data class SevenTvUserDto(
+    @SerialName("emote_set") val emoteSet: SevenTvEmoteSetDto? = null
+)
+
+@Serializable
 data class SevenTvActiveEmoteDto(
     val id: String,
     val name: String,

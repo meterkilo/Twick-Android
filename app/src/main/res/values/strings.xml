@@ -1,4 +1,21 @@
 <resources>
     <string name="app_name">ChatterinoMobile</string>
     <string name="title_activity_main">MainActivity</string>
+    <string name="auth_title">Twitch Login</string>
+    <string name="auth_subtitle">Device-code auth is now wired. Sign in with Twitch to unlock authenticated chat.</string>
+    <string name="auth_login">Sign In With Twitch</string>
+    <string name="auth_logout">Log Out</string>
+    <string name="auth_open_twitch">Open Activation Page</string>
+    <string name="auth_status_logged_out">Not signed in</string>
+    <string name="auth_status_logged_in">Signed in as %1$s</string>
+    <string name="auth_status_loading">Checking session…</string>
+    <string name="auth_status_starting">Starting device flow…</string>
+    <string name="auth_status_waiting">Waiting for Twitch authorization…</string>
+    <string name="auth_status_success">Twitch login complete.</string>
+    <string name="auth_user_code">Code: %1$s</string>
+    <string name="auth_activation_url">Activate at: %1$s</string>
+    <string name="auth_client_id_missing">No Twitch client ID is configured in local.properties.</string>
+    <string name="auth_denied">Authorization was denied in Twitch.</string>
+    <string name="auth_expired">The device code expired before authorization completed.</string>
+    <string name="auth_open_browser_hint">Keep this screen open while you authorize in the browser.</string>
 </resources>

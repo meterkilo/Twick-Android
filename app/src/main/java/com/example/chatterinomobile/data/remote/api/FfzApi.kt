@@ -2,6 +2,7 @@ package com.example.chatterinomobile.data.remote.api
 
 import com.example.chatterinomobile.data.remote.dto.FfzEmoteDto
 import com.example.chatterinomobile.data.remote.dto.FfzGlobalResponseDto
+import com.example.chatterinomobile.data.remote.dto.FfzRoomResponseDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -14,6 +15,12 @@ class FfzApi(private val httpClient: HttpClient) {
         return response.defaultSets
             .mapNotNull { setId -> response.sets[setId.toString()] }
             .flatMap { it.emoticons }
+    }
+
+    suspend fun getChannelEmotes(channelId: String): List<FfzEmoteDto> {
+        val response: FfzRoomResponseDto = httpClient.get("$BASE_URL/room/id/$channelId").body()
+        val setId = response.room.set ?: return emptyList()
+        return response.sets[setId.toString()]?.emoticons.orEmpty()
     }
 
     companion object {

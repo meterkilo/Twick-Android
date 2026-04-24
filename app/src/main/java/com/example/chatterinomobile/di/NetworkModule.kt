@@ -3,6 +3,15 @@ package com.example.chatterinomobile.di
 import com.example.chatterinomobile.data.remote.api.BttvApi
 import com.example.chatterinomobile.data.remote.api.FfzApi
 import com.example.chatterinomobile.data.remote.api.SevenTvApi
+import com.example.chatterinomobile.data.remote.api.SevenTvCosmeticsApi
+import com.example.chatterinomobile.data.remote.api.TwitchHelixApi
+import com.example.chatterinomobile.data.remote.api.TwitchOAuthApi
+import com.example.chatterinomobile.data.remote.irc.IrcMessageMapper
+import com.example.chatterinomobile.data.remote.irc.MessageEnricher
+import com.example.chatterinomobile.data.remote.irc.ModerationEventMapper
+import com.example.chatterinomobile.data.remote.irc.RoomStateMapper
+import com.example.chatterinomobile.data.remote.irc.TwitchIrcClient
+import com.example.chatterinomobile.data.remote.irc.UserStateMapper
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
@@ -11,6 +20,7 @@ import io.ktor.client.plugins.logging.DEFAULT
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.koin.dsl.module
@@ -32,10 +42,26 @@ val networkModule = module {
                 requestTimeoutMillis = 15_000
                 connectTimeoutMillis = 10_000
             }
+            // Needed by TwitchIrcClient to open wss://irc-ws.chat.twitch.tv
+            install(WebSockets)
         }
     }
 
+    // Emote providers
     single { SevenTvApi(get()) }
     single { BttvApi(get()) }
     single { FfzApi(get()) }
+
+    // Cosmetics + Twitch
+    single { SevenTvCosmeticsApi(get()) }
+    single { TwitchOAuthApi(get()) }
+    single { TwitchHelixApi(get(), get()) }
+
+    // Chat
+    single { TwitchIrcClient(get(), get()) }
+    single { IrcMessageMapper(get()) }
+    single { ModerationEventMapper() }
+    single { RoomStateMapper() }
+    single { UserStateMapper(get()) }
+    single { MessageEnricher(get(), get()) } // EmoteRepository, PaintRepository
 }

@@ -3,6 +3,7 @@ package com.example.chatterinomobile
 import android.app.Application
 import com.example.chatterinomobile.di.networkModule
 import com.example.chatterinomobile.di.repositoryModule
+import com.example.chatterinomobile.di.viewModelModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -16,7 +17,8 @@ class ChatterinoApp : Application() {
             androidContext(this@ChatterinoApp)
             modules(
                 networkModule,
-                repositoryModule
+                repositoryModule,
+                viewModelModule
             )
         }
     }

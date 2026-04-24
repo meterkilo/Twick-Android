@@ -1,8 +1,18 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     kotlin("plugin.serialization") version "2.0.21"
 }
+
+// Twitch client ID is read from local.properties (gitignored) and exposed via
+// BuildConfig. Debug / CI builds without a configured value still compile —
+// they just fall through to anonymous mode at runtime.
+val twitchClientId: String = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}.getProperty("twitchClientId", "")
 
 android {
     namespace = "com.example.chatterinomobile"
@@ -20,6 +30,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Expose the Twitch client ID to code via BuildConfig. Must be a
+        // quoted String literal — AGP takes the value verbatim.
+        buildConfigField("String", "TWITCH_CLIENT_ID", "\"$twitchClientId\"")
     }
 
     buildTypes {
@@ -37,6 +51,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -56,6 +71,14 @@ dependencies {
     // Koin
     implementation("io.insert-koin:koin-android:3.5.6")
     implementation("io.insert-koin:koin-androidx-compose:3.5.6")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")
+
+    // EncryptedSharedPreferences for OAuth token storage. The 1.1.0-alpha06
+    // line is the last maintained cut of security-crypto; the library is
+    // effectively frozen but still works. If Google ever ships a successor
+    // (DataStore + Keystore), migrate the TokenStore impl and the rest of
+    // the OAuth layer won't notice.
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

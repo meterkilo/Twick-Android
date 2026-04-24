@@ -20,6 +20,17 @@ data class FfzEmoteSetDto(
 )
 
 @Serializable
+data class FfzRoomResponseDto(
+    val room: FfzRoomDto,
+    val sets: Map<String, FfzEmoteSetDto>
+)
+
+@Serializable
+data class FfzRoomDto(
+    val set: Int? = null
+)
+
+@Serializable
 data class FfzEmoteDto(
     val id: Int,
     val name: String,
