@@ -47,6 +47,7 @@ import com.example.chatterinomobile.ui.channels.ChannelTabsViewModel
 import com.example.chatterinomobile.ui.chat.ChatUiState
 import com.example.chatterinomobile.ui.chat.ChatViewModel
 import com.example.chatterinomobile.ui.chat.describeParent
+import com.example.chatterinomobile.ui.onboarding.OnboardingFlow
 import com.example.chatterinomobile.ui.settings.SettingsUiState
 import com.example.chatterinomobile.ui.settings.SettingsViewModel
 import com.example.chatterinomobile.ui.theme.ChatterinoMobileTheme
@@ -69,6 +70,21 @@ class MainActivity : ComponentActivity() {
             val chatState by chatViewModel.uiState.collectAsState()
             val settingsState by settingsViewModel.uiState.collectAsState()
 
+            // Onboarding stays visible until the user explicitly finishes the flow.
+            // Skipped automatically for sessions where the access token survived the
+            // app restart — see the LaunchedEffect below.
+            var onboardingComplete by rememberSaveable { mutableStateOf(false) }
+            LaunchedEffect(authState.isLoggedIn, authState.isLoading) {
+                if (authState.isLoggedIn && !authState.isLoading && !onboardingComplete) {
+                    // Returning user — token check finished and we're already authed.
+                    // Don't force them through the welcome/connect screens; just drop
+                    // straight into the dev screen. New users still see the full flow
+                    // because isLoggedIn flips false → true *during* onboarding, which
+                    // OnboardingFlow handles by advancing to the sync step instead.
+                    if (savedInstanceState == null) onboardingComplete = true
+                }
+            }
+
             LaunchedEffect(activeChannel.channelLogin, activeChannel.hydration?.channelId) {
                 chatViewModel.setActiveChannel(
                     channelLogin = activeChannel.channelLogin,
@@ -78,15 +94,19 @@ class MainActivity : ComponentActivity() {
 
             ChatterinoMobileTheme {
                 val authorizeUrl = authState.authorizeUrl
-                if (authorizeUrl != null) {
-                    TwitchLoginWebView(
+                when {
+                    authorizeUrl != null -> TwitchLoginWebView(
                         url = authorizeUrl,
                         redirectUri = AuthRepository.REDIRECT_URI,
                         onRedirect = authViewModel::onRedirectIntercepted,
                         onCancel = authViewModel::cancelLogin
                     )
-                } else {
-                    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                    !onboardingComplete -> OnboardingFlow(
+                        isLoggedIn = authState.isLoggedIn,
+                        onConnectTwitch = authViewModel::startLogin,
+                        onFinish = { onboardingComplete = true }
+                    )
+                    else -> Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                         DevScreen(
                             authState = authState,
                             activeChannel = activeChannel,
@@ -132,7 +152,7 @@ private fun DevScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Chatterino Mobile",
+            text = "Twick",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )

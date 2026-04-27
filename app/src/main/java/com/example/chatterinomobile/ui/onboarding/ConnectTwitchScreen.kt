@@ -1,0 +1,201 @@
+package com.example.chatterinomobile.ui.onboarding
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.chatterinomobile.ui.theme.Twick
+
+/**
+ * Onboarding screen 3: connect a Twitch account.
+ *
+ * Only Twitch is offered — no Kick, YouTube, or anonymous rows. The MVP
+ * backend is Twitch-only; showing dead-end CTAs is worse than not showing
+ * them at all.
+ */
+@Composable
+internal fun ConnectTwitchScreen(
+    onBack: () -> Unit,
+    onConnect: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Twick.Bg)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 110.dp)
+        ) {
+            OnboardingAppBar(onBack = onBack)
+
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 24.dp)
+                    .padding(top = 8.dp)
+            ) {
+                Text(
+                    text = "Connect an account",
+                    color = Twick.Ink,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.52).sp
+                )
+
+                Spacer(Modifier.height(6.dp))
+
+                Text(
+                    text = "Twick never stores your credentials on our servers. " +
+                            "You'll authenticate directly with Twitch and we keep the token on-device.",
+                    color = Twick.Ink3,
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp
+                )
+
+                Spacer(Modifier.height(28.dp))
+
+                TwitchAccountCard()
+
+                Spacer(Modifier.height(20.dp))
+
+                ScopeNote()
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp)
+        ) {
+            TwitchPrimaryButton(
+                text = "Connect with Twitch",
+                onClick = onConnect
+            )
+        }
+    }
+}
+
+/**
+ * Visualises Twitch as the selected connect option with purple-tinted
+ * background + accent border. Uses the real Twitch glitch mark logo
+ * instead of a text placeholder.
+ */
+@Composable
+private fun TwitchAccountCard() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(Twick.AccentSoft)
+            .border(1.dp, Twick.Accent, RoundedCornerShape(14.dp))
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Twick.S2),
+            contentAlignment = Alignment.Center
+        ) {
+            TwitchLogo(size = 26.dp)
+        }
+
+        Spacer(Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Twitch",
+                color = Twick.Ink,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "Log in with OAuth · chat + VODs + clips",
+                color = Twick.Ink3,
+                fontSize = 11.sp
+            )
+        }
+
+        Icon(
+            imageVector = Icons.Default.Check,
+            contentDescription = null,
+            tint = Twick.Accent,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+/**
+ * Scope preview panel shown before the OAuth hand-off so the user sees what
+ * they're granting *before* the browser opens. Matches the MVP scope list in
+ * CLAUDE.md: chat:read, chat:edit, user:read:follows.
+ */
+@Composable
+private fun ScopeNote() {
+    val scopes = listOf(
+        "Read your follows",
+        "Read and send chat messages",
+        "Read user profile info"
+    )
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Twick.S1)
+            .border(1.dp, Twick.Hairline, RoundedCornerShape(12.dp))
+            .padding(14.dp)
+    ) {
+        Text(
+            text = "THIS WILL ALLOW TWITCH TO",
+            color = Twick.Ink3,
+            fontSize = 11.sp,
+            letterSpacing = 0.66.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.height(10.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            scopes.forEach { scope ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Twick.Success,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = scope,
+                        color = Twick.Ink,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+        }
+    }
+}
