@@ -5,6 +5,7 @@ import com.example.chatterinomobile.data.local.BadgeDiskCache
 import com.example.chatterinomobile.data.local.DiskCacheRoot
 import com.example.chatterinomobile.data.local.EmoteDimensionStore
 import com.example.chatterinomobile.data.local.EmoteDiskCache
+import com.example.chatterinomobile.data.local.FollowListCache
 import com.example.chatterinomobile.data.local.TokenStore
 import com.example.chatterinomobile.data.repository.AnonymousAuthRepository
 import com.example.chatterinomobile.data.repository.AuthRepository
@@ -29,6 +30,7 @@ val repositoryModule = module {
     single { DiskCacheRoot(get()) }
     single { EmoteDiskCache(get()) }
     single { BadgeDiskCache(get()) }
+    single { FollowListCache(get()) }
     single { EmoteDimensionStore(get()) }
 
     single {
@@ -58,7 +60,7 @@ val repositoryModule = module {
     single { PaintRepositoryImpl(get()) } bind PaintRepository::class
     single { ChannelRepositoryImpl(get()) } bind ChannelRepository::class
 
-    single { CacheAdmin(get(), get(), get(), get()) }
+    single { CacheAdmin(get(), get(), get(), get(), get()) }
 
     single {
         ChatRepositoryImpl(

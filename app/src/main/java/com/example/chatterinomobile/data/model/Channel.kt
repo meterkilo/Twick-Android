@@ -8,5 +8,6 @@ data class Channel(
     val viewerCount: Int = 0,
     val gameName: String? = null,
     val title: String? = null,
-    val thumbnailUrl: String? = null
+    val thumbnailUrl: String? = null,
+    val profileImageUrl: String? = null
 )

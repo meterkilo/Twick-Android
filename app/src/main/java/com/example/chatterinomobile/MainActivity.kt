@@ -16,10 +16,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.chatterinomobile.data.repository.AuthRepository
 import com.example.chatterinomobile.ui.auth.AuthViewModel
 import com.example.chatterinomobile.ui.auth.TwitchAuthLauncher
 import com.example.chatterinomobile.ui.channels.ChannelTabsViewModel
+import com.example.chatterinomobile.ui.chat.ChatRoute
 import com.example.chatterinomobile.ui.chat.ChatViewModel
 import com.example.chatterinomobile.ui.discovery.DiscoveryScreen
 import com.example.chatterinomobile.ui.onboarding.OnboardingFlow
@@ -28,10 +32,6 @@ import com.example.chatterinomobile.ui.theme.ChatterinoMobileTheme
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
-
-
-
-
 
     private val authViewModel: AuthViewModel by viewModel()
     private val tabsViewModel: ChannelTabsViewModel by viewModel()
@@ -63,19 +63,9 @@ class MainActivity : ComponentActivity() {
             val authState by authViewModel.uiState.collectAsState()
             val activeChannel by tabsViewModel.activeChannel.collectAsState()
 
-
-
-
-
             var onboardingComplete by rememberSaveable { mutableStateOf(false) }
             LaunchedEffect(authState.isLoggedIn, authState.isLoading) {
                 if (authState.isLoggedIn && !authState.isLoading && !onboardingComplete) {
-
-
-
-
-
-
                     if (savedInstanceState == null) onboardingComplete = true
                 }
             }
@@ -95,6 +85,16 @@ class MainActivity : ComponentActivity() {
                 authViewModel.onAuthorizeUrlConsumed()
             }
 
+            val navController = rememberNavController()
+
+            LaunchedEffect(activeChannel.channelLogin) {
+                if (activeChannel.channelLogin != null) {
+                    navController.navigate(Routes.Chat) {
+                        launchSingleTop = true
+                    }
+                }
+            }
+
             ChatterinoMobileTheme {
                 when {
                     !onboardingComplete -> OnboardingFlow(
@@ -103,17 +103,43 @@ class MainActivity : ComponentActivity() {
                         onFinish = { onboardingComplete = true }
                     )
 
-
-
-
                     else -> Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                        DiscoveryScreen(
-                            onJoinChannel = tabsViewModel::joinChannel,
+                        NavHost(
+                            navController = navController,
+                            startDestination = Routes.Discovery,
                             modifier = Modifier.padding(innerPadding)
-                        )
+                        ) {
+                            composable(Routes.Discovery) {
+                                DiscoveryScreen(
+                                    onJoinChannel = tabsViewModel::joinChannel
+                                )
+                            }
+                            composable(Routes.Chat) {
+                                ChatRoute(
+                                    chatViewModel = chatViewModel,
+                                    tabsViewModel = tabsViewModel,
+                                    onBack = { navController.popBackStack() }
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        TwitchAuthLauncher.bind(this)
+    }
+
+    override fun onStop() {
+        TwitchAuthLauncher.unbind(this)
+        super.onStop()
+    }
+}
+
+private object Routes {
+    const val Discovery = "discovery"
+    const val Chat = "chat"
 }

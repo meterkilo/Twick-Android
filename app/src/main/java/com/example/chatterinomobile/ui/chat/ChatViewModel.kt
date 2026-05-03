@@ -3,6 +3,7 @@ package com.example.chatterinomobile.ui.chat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chatterinomobile.data.model.ChatMessage
+import com.example.chatterinomobile.data.model.ModerationEvent
 import com.example.chatterinomobile.data.model.ReplyMetadata
 import com.example.chatterinomobile.data.model.SendMessageResult
 import com.example.chatterinomobile.data.repository.ChatRepository
@@ -19,6 +20,29 @@ class ChatViewModel(
     val uiState = _uiState.asStateFlow()
 
     private var liveCollector: Job? = null
+    private var moderationCollector: Job? = null
+
+    init {
+        moderationCollector = viewModelScope.launch {
+            chatRepository.moderationEvents.collect { event ->
+                val state = _uiState.value
+                val active = state.activeChannelLogin ?: return@collect
+                if (event.channelLogin != active) return@collect
+                when (event) {
+                    is ModerationEvent.ChatCleared -> update { copy(deletedIds = emptySet(), bannedLogins = emptySet()) }
+                    is ModerationEvent.MessageDeleted -> update {
+                        copy(deletedIds = deletedIds + event.targetMessageId)
+                    }
+                    is ModerationEvent.UserBanned -> update {
+                        copy(bannedLogins = bannedLogins + event.targetLogin)
+                    }
+                    is ModerationEvent.UserTimedOut -> update {
+                        copy(bannedLogins = bannedLogins + event.targetLogin)
+                    }
+                }
+            }
+        }
+    }
 
     fun setActiveChannel(channelLogin: String?, channelId: String? = null) {
         val state = _uiState.value
@@ -31,8 +55,9 @@ class ChatViewModel(
             copy(
                 activeChannelLogin = channelLogin,
                 activeChannelId = channelId,
-
                 recentMessages = if (isChannelSwitch) emptyList() else recentMessages,
+                deletedIds = if (isChannelSwitch) emptySet() else deletedIds,
+                bannedLogins = if (isChannelSwitch) emptySet() else bannedLogins,
                 sendStatusMessage = null,
                 sendErrorMessage = null
             )
@@ -99,6 +124,8 @@ data class ChatUiState(
     val activeChannelLogin: String? = null,
     val activeChannelId: String? = null,
     val recentMessages: List<ChatMessage> = emptyList(),
+    val deletedIds: Set<String> = emptySet(),
+    val bannedLogins: Set<String> = emptySet(),
     val sendStatusMessage: String? = null,
     val sendErrorMessage: String? = null
 )

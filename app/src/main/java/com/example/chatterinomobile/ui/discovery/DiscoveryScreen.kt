@@ -1,6 +1,7 @@
 package com.example.chatterinomobile.ui.discovery
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,9 +14,14 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -23,8 +29,21 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -33,20 +52,29 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.chatterinomobile.data.model.Channel
 import com.example.chatterinomobile.ui.theme.Twick
 import org.koin.androidx.compose.koinViewModel
@@ -65,22 +93,235 @@ fun DiscoveryScreen(
             .fillMaxSize()
             .background(Twick.Bg)
     ) {
-        DiscoveryTopBar(onRefresh = viewModel::refresh)
-        DiscoveryTabs(activeTab = activeTab, onTabSelected = { activeTab = it })
+        if (state.searchActive) {
+            SearchBody(
+                state = state,
+                onQueryChange = viewModel::onSearchQueryChange,
+                onClose = viewModel::closeSearch,
+                onJoinChannel = { login ->
+                    viewModel.closeSearch()
+                    onJoinChannel(login)
+                }
+            )
+            return@Column
+        }
+        if (activeTab != 0) {
+            DiscoveryTopBar(onSearch = viewModel::openSearch)
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = 88.dp)
+            ) {
+                when {
+                    state.isLoading -> LoadingBody()
+                    state.error != null && state.followedLive.isEmpty() && state.recommendedStreams.isEmpty() ->
+                        ErrorBody(message = state.error!!, onRetry = viewModel::refresh)
+                    else -> when (activeTab) {
+                        0 -> HomeBody(state = state, onJoinChannel = onJoinChannel, onSearch = viewModel::openSearch)
+                        1 -> BrowseBody(state = state, onJoinChannel = onJoinChannel)
+                        2 -> YouBody()
+                        else -> BrowseBody(state = state, onJoinChannel = onJoinChannel)
+                    }
+                }
+            }
+
+            DiscoveryBottomBar(
+                activeTab = activeTab,
+                onTabSelected = { activeTab = it },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SearchBody(
+    state: DiscoveryUiState,
+    onQueryChange: (String) -> Unit,
+    onClose: () -> Unit,
+    onJoinChannel: (String) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        SearchBar(
+            query = state.searchQuery,
+            onQueryChange = onQueryChange,
+            onClose = onClose
+        )
 
         when {
-            state.isLoading -> LoadingBody()
-            state.error != null && state.followedLive.isEmpty() && state.recommendedStreams.isEmpty() ->
-                ErrorBody(message = state.error!!, onRetry = viewModel::refresh)
-            else -> when (activeTab) {
-                0 -> ForYouBody(state = state, onJoinChannel = onJoinChannel)
-                1 -> FollowingBody(state = state, onJoinChannel = onJoinChannel)
-                2 -> BrowseBody(state = state, onJoinChannel = onJoinChannel)
-                else -> ForYouBody(state = state, onJoinChannel = onJoinChannel)
+            state.searchQuery.isBlank() -> SearchEmptyText(text = "Search channels")
+            state.isSearching -> LoadingBody()
+            state.searchResults.isEmpty() -> SearchEmptyText(text = "No channels found")
+            else -> Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                state.searchResults.forEach { channel ->
+                    SearchResultRow(channel = channel, onClick = { onJoinChannel(channel.login) })
+                }
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
 }
+
+@Composable
+private fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClose: () -> Unit
+) {
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        TopBarIconButton(icon = Icons.AutoMirrored.Filled.ArrowBack, onClick = onClose)
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .height(44.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Twick.S1)
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(Icons.Filled.Search, contentDescription = null, tint = Twick.Ink3, modifier = Modifier.size(19.dp))
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                if (query.isEmpty()) {
+                    Text(text = "Channel name", color = Twick.Ink4, fontSize = 15.sp)
+                }
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = Twick.Ink,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = {}),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                )
+            }
+            if (query.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { onQueryChange("") }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.Close, contentDescription = null, tint = Twick.Ink3, modifier = Modifier.size(18.dp))
+                }
+            }
+        }
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(Twick.Hairline)
+    )
+}
+
+@Composable
+private fun SearchEmptyText(text: String) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(text = text, color = Twick.Ink3, fontSize = 14.sp)
+    }
+}
+
+@Composable
+private fun SearchResultRow(channel: Channel, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box {
+            AvatarCircle(name = channel.displayName, size = 44.dp, imageUrl = channel.profileImageUrl)
+            if (channel.isLive) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(Twick.Live)
+                        .border(2.dp, Twick.Bg, CircleShape)
+                )
+            }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
+                Text(
+                    text = channel.displayName,
+                    color = Twick.Ink,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Text(
+                    text = if (channel.isLive) "LIVE" else "OFFLINE",
+                    color = if (channel.isLive) Color.White else Twick.Ink3,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (channel.isLive) Twick.Live else Twick.S2)
+                        .padding(horizontal = 5.dp, vertical = 2.dp)
+                )
+            }
+            Text(
+                text = buildSearchSubtitle(channel),
+                color = Twick.Ink3,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+private fun buildSearchSubtitle(channel: Channel): String =
+    when {
+        channel.isLive && channel.gameName != null -> channel.gameName
+        channel.isLive -> "Live"
+        else -> "@${channel.login}"
+    }
 
 @Composable
 private fun LoadingBody() {
@@ -116,14 +357,18 @@ private fun ErrorBody(message: String, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun ForYouBody(state: DiscoveryUiState, onJoinChannel: (String) -> Unit) {
+private fun ForYouBody(
+    state: DiscoveryUiState,
+    onJoinChannel: (String) -> Unit,
+    onSeeAllFollowing: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
     ) {
         if (state.followedLive.isNotEmpty()) {
-            SectionHeader(title = "Live now · following", action = "See all")
+            SectionHeader(title = "Live now · following", action = "See all", onActionClick = onSeeAllFollowing)
             LiveFollowingRow(channels = state.followedLive, onClick = onJoinChannel)
             Spacer(Modifier.height(8.dp))
         }
@@ -173,6 +418,724 @@ private fun FollowingBody(state: DiscoveryUiState, onJoinChannel: (String) -> Un
     }
 }
 
+private enum class PinnedKind { Channel, Chat }
+
+private data class PinnedItem(
+    val kind: PinnedKind,
+    val name: String,
+    val subtitle: String,
+    val message: String? = null,
+    val platform: String? = "twitch",
+    val isLive: Boolean = false,
+    val viewers: String? = null,
+    val unread: Int = 0,
+    val mention: Boolean = false,
+    val scheduled: String? = null
+)
+
+private val samplePinnedItems = listOf(
+    PinnedItem(PinnedKind.Channel, "Hasanabi", "Politics", platform = "twitch", isLive = true, viewers = "24.8K", unread = 412, mention = true),
+    PinnedItem(PinnedKind.Chat, "CDawgVA", "last chat · 2h", "\"new collab tomorrow @everyone\"", platform = "twitch", unread = 8),
+    PinnedItem(PinnedKind.Channel, "Caseoh_", "Schedule I", platform = "kick", isLive = true, viewers = "18.2K"),
+    PinnedItem(PinnedKind.Channel, "Emiru", "Just Chatting", platform = "twitch", isLive = true, viewers = "6.4K", unread = 23),
+    PinnedItem(PinnedKind.Chat, "Lirik", "last chat · y'day", "\"yo solid play that was insane\"", platform = "twitch"),
+    PinnedItem(PinnedKind.Channel, "Valkyrae", "Goes live ~7pm", platform = "youtube", scheduled = "7:00 PM"),
+    PinnedItem(PinnedKind.Chat, "XQC squad", "group · 4 members", "Train: \"see you in 10\"", platform = null, unread = 2, mention = true)
+)
+
+@Composable
+private fun HomeBody(
+    state: DiscoveryUiState,
+    onJoinChannel: (String) -> Unit,
+    onSearch: () -> Unit
+) {
+    val carouselChannels = (state.followedLive + state.recommendedStreams).distinctBy { it.login }.take(10)
+    val heroChannel = carouselChannels.firstOrNull()
+    val liveCount = samplePinnedItems.count { it.isLive } + if (heroChannel?.isLive == true) 1 else 0
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            HomeHeader(liveCount = liveCount, savedCount = samplePinnedItems.size + 1, onSearch = onSearch)
+            HomeFilterPills()
+            PullToRefreshHint()
+
+            if (carouselChannels.isNotEmpty()) {
+                SectionHeader(title = "Live carousel")
+                LiveFollowingRow(channels = carouselChannels, onClick = onJoinChannel)
+                Spacer(Modifier.height(6.dp))
+            }
+
+            HomeHeroCard(channel = heroChannel, onJoinChannel = onJoinChannel)
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Saved channels & chats",
+                    color = Twick.Ink,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable {}
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(text = "Recent", color = Twick.Ink3, fontSize = 12.sp)
+                    Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null, tint = Twick.Ink3, modifier = Modifier.size(14.dp))
+                }
+            }
+
+            Column(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                samplePinnedItems.forEachIndexed { index, item ->
+                    PinnedRow(
+                        item = item,
+                        index = index,
+                        pressed = index == 4,
+                        swiped = index == 2,
+                        onClick = {
+                            val match = carouselChannels.firstOrNull {
+                                it.login.equals(item.name, ignoreCase = true) ||
+                                    it.displayName.equals(item.name, ignoreCase = true)
+                            }
+                            if (match != null) onJoinChannel(match.login)
+                        }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(160.dp))
+        }
+
+        HomeNowPlayingBar(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(start = 8.dp, end = 8.dp, bottom = 66.dp)
+        )
+
+        AddPinFab(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 138.dp)
+        )
+    }
+}
+
+@Composable
+private fun HomeHeader(liveCount: Int, savedCount: Int, onSearch: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 10.dp, top = 14.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Twick.PurpleGradient),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.PushPin, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
+            }
+            Column {
+                Text(
+                    text = "Pinned",
+                    color = Twick.Ink,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    lineHeight = 23.sp
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "● $liveCount live",
+                        color = Twick.Live,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Text(text = " · ", color = Twick.Ink4, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                    Text(
+                        text = "$savedCount saved",
+                        color = Twick.Ink3,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            TopBarIconButton(icon = Icons.Filled.Search, onClick = onSearch)
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable {},
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.Notifications, contentDescription = null, tint = Twick.Ink, modifier = Modifier.size(21.dp))
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset((-8).dp, 8.dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Twick.Live)
+                        .border(2.dp, Twick.Bg, CircleShape)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeFilterPills() {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp)
+    ) {
+        item { SoftPill(text = "All", active = true) }
+        item { SoftPill(text = "Live", leadingDot = Twick.Live) }
+        item { SoftPill(text = "Unread") }
+        item { SoftPill(text = "Channels") }
+        item { SoftPill(text = "Chats") }
+        item { SoftPill(text = "Groups") }
+    }
+}
+
+@Composable
+private fun SoftPill(text: String, active: Boolean = false, leadingDot: Color? = null) {
+    Row(
+        modifier = Modifier
+            .height(36.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (active) Twick.Ink else Twick.S2)
+            .border(1.dp, if (active) Color.Transparent else Twick.Hairline, RoundedCornerShape(12.dp))
+            .clickable {}
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        if (leadingDot != null) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(leadingDot)
+            )
+        }
+        Text(
+            text = text,
+            color = if (active) Color.Black else Twick.Ink2,
+            fontSize = 13.sp,
+            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun PullToRefreshHint() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 10.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = null, tint = Twick.Ink4, modifier = Modifier.size(13.dp))
+        Text(
+            text = "PULL TO REFRESH",
+            color = Twick.Ink4,
+            fontSize = 10.sp,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun HomeHeroCard(channel: Channel?, onJoinChannel: (String) -> Unit) {
+    val heroName = channel?.displayName ?: "pokimane"
+    val heroTitle = channel?.title ?: "late night vods reaction + co-stream w/ friends"
+    val heroGame = channel?.gameName ?: "Just Chatting"
+    val viewers = channel?.viewerCount ?: 12_400
+
+    Column(
+        modifier = Modifier
+            .padding(start = 16.dp, end = 16.dp, bottom = 14.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(thumbnailGradient(heroName))
+            .border(1.dp, Twick.Hairline.copy(alpha = 0.28f), RoundedCornerShape(24.dp))
+            .clickable(enabled = channel != null) {
+                if (channel != null) onJoinChannel(channel.login)
+            }
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+        ) {
+            if (channel?.thumbnailUrl != null) {
+                AsyncImage(
+                    model = channel.thumbnailUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            Text(
+                text = "$heroName / $heroGame",
+                color = Color.White.copy(alpha = 0.22f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.align(Alignment.Center)
+            )
+            Row(
+                modifier = Modifier.padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                LivePill(viewerText = formatViewers(viewers))
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color.Black.copy(alpha = 0.55f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    PlatformDot(platform = "twitch", size = 7.dp)
+                    Text("3:42:11", color = Twick.Ink, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.Black.copy(alpha = 0.52f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.PushPin, contentDescription = null, tint = Twick.Accent, modifier = Modifier.size(15.dp))
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(30.dp))
+            }
+        }
+
+        Row(
+            modifier = Modifier.padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            AvatarCircle(name = heroName, size = 40.dp, imageUrl = channel?.profileImageUrl)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = heroName, color = Twick.Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(
+                    text = heroTitle,
+                    color = Twick.Ink2,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "184",
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .height(24.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Twick.Accent)
+                        .padding(horizontal = 11.dp, vertical = 5.dp)
+                )
+                Text("NEW", color = Twick.Ink3, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PinnedRow(
+    item: PinnedItem,
+    index: Int,
+    pressed: Boolean,
+    swiped: Boolean,
+    onClick: () -> Unit
+) {
+    val restShape = when (index % 4) {
+        1 -> RoundedCornerShape(topStart = 24.dp, topEnd = 12.dp, bottomEnd = 24.dp, bottomStart = 12.dp)
+        2 -> RoundedCornerShape(16.dp)
+        3 -> RoundedCornerShape(topStart = 12.dp, topEnd = 24.dp, bottomEnd = 12.dp, bottomStart = 24.dp)
+        else -> RoundedCornerShape(20.dp)
+    }
+
+    if (swiped) {
+        Box(modifier = Modifier.height(72.dp)) {
+            Row(
+                modifier = Modifier
+                    .matchParentSize()
+                    .padding(end = 4.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                PinnedSwipeAction(icon = Icons.AutoMirrored.Filled.VolumeOff, label = "Mute", color = Twick.Accent)
+                Spacer(Modifier.width(4.dp))
+                PinnedSwipeAction(icon = Icons.Filled.Bookmark, label = "Archive", color = Twick.Live)
+            }
+            PinnedRowInner(
+                item = item,
+                shape = restShape,
+                pressed = false,
+                onClick = onClick,
+                modifier = Modifier.offset(x = (-148).dp)
+            )
+        }
+    } else {
+        PinnedRowInner(
+            item = item,
+            shape = if (pressed) RoundedCornerShape(topStart = 32.dp, topEnd = 8.dp, bottomEnd = 32.dp, bottomStart = 8.dp) else restShape,
+            pressed = pressed,
+            onClick = onClick
+        )
+    }
+}
+
+@Composable
+private fun PinnedSwipeAction(icon: ImageVector, label: String, color: Color) {
+    Column(
+        modifier = Modifier
+            .width(72.dp)
+            .height(72.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(color.copy(alpha = 0.16f)),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.height(4.dp))
+        Text(label, color = color, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun PinnedRowInner(
+    item: PinnedItem,
+    shape: RoundedCornerShape,
+    pressed: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(72.dp)
+            .clip(shape)
+            .background(if (pressed) Twick.S2 else if (item.isLive) Twick.Live.copy(alpha = 0.04f) else Twick.S1)
+            .border(1.dp, if (item.isLive) Twick.Live.copy(alpha = 0.15f) else Twick.Hairline, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (item.isLive) {
+                StoryRingAvatar(name = item.name, imageUrl = null, avatarSize = 48.dp, ringWidth = 2.dp, ringGap = 1.5.dp)
+            } else {
+                AvatarCircle(name = item.name, size = 52.dp)
+            }
+            item.platform?.let {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .offset(x = (-1).dp, y = 1.dp)
+                        .size(16.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .background(Twick.Bg)
+                        .padding(3.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    PlatformDot(platform = it, size = 10.dp)
+                }
+            }
+            if (!item.isLive && item.scheduled != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 2.dp, y = 2.dp)
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(Twick.S3)
+                        .border(2.dp, Twick.Bg, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.AccessTime, contentDescription = null, tint = Twick.Ink2, modifier = Modifier.size(10.dp))
+                }
+            }
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = item.name,
+                    color = Twick.Ink,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Text(
+                    text = if (item.kind == PinnedKind.Channel && item.isLive) "LIVE" else if (item.kind == PinnedKind.Chat) "CHAT" else "",
+                    color = if (item.isLive) Twick.Live else Twick.Ink4,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+                if (item.scheduled != null) {
+                    Text(
+                        text = item.scheduled,
+                        color = Twick.Ink3,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Twick.S2)
+                            .padding(horizontal = 6.dp, vertical = 1.dp)
+                    )
+                }
+            }
+            Text(
+                text = item.message ?: item.subtitle,
+                color = if (item.isLive) Twick.Ink2 else Twick.Ink3,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (item.isLive && item.viewers != null) {
+                Text(
+                    text = item.viewers,
+                    color = Twick.Live,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            if (item.unread > 0) {
+                Text(
+                    text = if (item.mention) "@${item.unread}" else item.unread.toString(),
+                    color = if (item.mention) Color.White else Twick.Ink2,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .height(22.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(if (item.mention) Twick.Accent else Twick.S3)
+                        .border(1.dp, if (item.mention) Color.Transparent else Twick.Hairline, RoundedCornerShape(999.dp))
+                        .padding(horizontal = 7.dp, vertical = 4.dp)
+                )
+            } else {
+                Spacer(Modifier.size(22.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeNowPlayingBar(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        hsvColor(285f, 0.45f, 0.26f),
+                        hsvColor(320f, 0.38f, 0.18f)
+                    )
+                )
+            )
+            .border(1.dp, Twick.Hairline.copy(alpha = 0.28f), RoundedCornerShape(18.dp))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(2.dp)
+                .background(Color.White.copy(alpha = 0.08f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.38f)
+                    .height(2.dp)
+                    .background(Brush.linearGradient(listOf(Twick.Accent, Twick.Live)))
+            )
+        }
+        Row(
+            modifier = Modifier.padding(start = 8.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box {
+                AvatarCircle(name = "Hasanabi", size = 36.dp)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 2.dp, y = 2.dp)
+                        .size(14.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Twick.Bg)
+                        .padding(2.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    PlatformDot(platform = "twitch", size = 9.dp)
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(modifier = Modifier.size(5.dp).clip(CircleShape).background(Twick.Live))
+                    Text(
+                        text = "Hasanabi",
+                        color = Twick.Ink,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text("AUDIO", color = Twick.Ink3, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                }
+                Text(
+                    text = "Reacting to the new policy hearing",
+                    color = Twick.Ink3,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Icon(Icons.Filled.Close, contentDescription = null, tint = Twick.Ink3, modifier = Modifier.size(18.dp))
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Twick.Ink),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.Pause, contentDescription = null, tint = Color.Black, modifier = Modifier.size(17.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddPinFab(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .height(52.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Twick.Accent)
+            .clickable {}
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(Icons.Filled.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+        Text(
+            text = "Add pin",
+            color = Color.White,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun YouBody() {
+    PlaceholderBody(
+        icon = Icons.Filled.Person,
+        title = "You",
+        message = "Your account and saved spaces will live here."
+    )
+}
+
+@Composable
+private fun PlaceholderBody(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    message: String
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Twick.S2)
+                .border(1.dp, Twick.Hairline, RoundedCornerShape(24.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Twick.Ink,
+                modifier = Modifier.size(34.dp)
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = title,
+            color = Twick.Ink,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = message,
+            color = Twick.Ink3,
+            fontSize = 13.sp
+        )
+    }
+}
+
 @Composable
 private fun BrowseBody(state: DiscoveryUiState, onJoinChannel: (String) -> Unit) {
     if (state.recommendedStreams.isEmpty()) {
@@ -212,6 +1175,14 @@ private fun BrowseBody(state: DiscoveryUiState, onJoinChannel: (String) -> Unit)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(thumbnailGradient(channel.login))
                         ) {
+                            if (channel.thumbnailUrl != null) {
+                                AsyncImage(
+                                    model = channel.thumbnailUrl,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                             Row(
                                 modifier = Modifier
                                     .padding(4.dp)
@@ -220,12 +1191,12 @@ private fun BrowseBody(state: DiscoveryUiState, onJoinChannel: (String) -> Unit)
                                     .padding(horizontal = 4.dp, vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "● ${formatViewers(channel.viewerCount)}",
+                                ViewerCountLabel(
+                                    count = channel.viewerCount,
+                                    fontSize = 9,
+                                    iconSize = 10.dp,
                                     color = Color.White,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace
+                                    fontWeight = FontWeight.Bold
                                 )
                             }
                         }
@@ -258,7 +1229,7 @@ private fun BrowseBody(state: DiscoveryUiState, onJoinChannel: (String) -> Unit)
 }
 
 @Composable
-private fun DiscoveryTopBar(onRefresh: () -> Unit) {
+private fun DiscoveryTopBar(onSearch: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -303,7 +1274,7 @@ private fun DiscoveryTopBar(onRefresh: () -> Unit) {
         }
 
         Row {
-            TopBarIconButton(icon = Icons.Filled.Search, onClick = {})
+            TopBarIconButton(icon = Icons.Filled.Search, onClick = onSearch)
             TopBarIconButton(icon = Icons.Filled.Notifications, onClick = {})
         }
     }
@@ -322,50 +1293,67 @@ private fun TopBarIconButton(icon: androidx.compose.ui.graphics.vector.ImageVect
     }
 }
 
+private data class BottomDestination(
+    val label: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector
+)
+
 @Composable
-private fun DiscoveryTabs(activeTab: Int, onTabSelected: (Int) -> Unit) {
-    val tabs = listOf("For you", "Following", "Browse")
+private fun DiscoveryBottomBar(
+    activeTab: Int,
+    onTabSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val tabs = listOf(
+        BottomDestination("Home", Icons.Filled.Home),
+        BottomDestination("Browse", Icons.Filled.Explore),
+        BottomDestination("You", Icons.Filled.Person)
+    )
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .padding(top = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(18.dp)
+            .navigationBarsPadding()
+            .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(Twick.S1.copy(alpha = 0.96f))
+            .border(1.dp, Twick.Hairline, RoundedCornerShape(24.dp))
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        tabs.forEachIndexed { idx, label ->
+        tabs.forEachIndexed { idx, destination ->
             val isActive = idx == activeTab
-            Column(
+            Row(
                 modifier = Modifier
-                    .padding(bottom = 10.dp)
-                    .clickable { onTabSelected(idx) },
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .weight(1f)
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(if (isActive) 18.dp else 16.dp))
+                    .background(if (isActive) Twick.AccentSoft else Color.Transparent)
+                    .clickable { onTabSelected(idx) }
+                    .padding(horizontal = 10.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = label,
-                    color = if (isActive) Twick.Ink else Twick.Ink3,
-                    fontSize = 14.sp,
-                    fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium
+                Icon(
+                    imageVector = destination.icon,
+                    contentDescription = destination.label,
+                    tint = if (isActive) Twick.Ink else Twick.Ink3,
+                    modifier = Modifier.size(21.dp)
                 )
-                Spacer(Modifier.height(8.dp))
-                Box(
-                    modifier = Modifier
-                        .height(2.dp)
-                        .width(if (isActive) 36.dp else 0.dp)
-                        .background(if (isActive) Twick.Accent else Color.Transparent)
+                Spacer(Modifier.width(7.dp))
+                Text(
+                    text = destination.label,
+                    color = if (isActive) Twick.Ink else Twick.Ink3,
+                    fontSize = 12.sp,
+                    fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium
                 )
             }
         }
     }
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(Twick.Hairline)
-    )
 }
 
 @Composable
-private fun SectionHeader(title: String, action: String? = null) {
+private fun SectionHeader(title: String, action: String? = null, onActionClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -380,7 +1368,7 @@ private fun SectionHeader(title: String, action: String? = null) {
                 color = Twick.Accent,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
-                modifier = Modifier.clickable {}
+                modifier = Modifier.clickable(onClick = onActionClick)
             )
         }
     }
@@ -390,7 +1378,7 @@ private fun SectionHeader(title: String, action: String? = null) {
 private fun LiveFollowingRow(channels: List<Channel>, onClick: (String) -> Unit) {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 8.dp)
@@ -398,21 +1386,18 @@ private fun LiveFollowingRow(channels: List<Channel>, onClick: (String) -> Unit)
         items(channels, key = { it.login }) { channel ->
             Column(
                 modifier = Modifier
-                    .width(64.dp)
+                    .width(72.dp)
                     .clickable { onClick(channel.login) },
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(CircleShape)
-                        .background(Twick.Live)
-                        .padding(2.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AvatarCircle(name = channel.displayName, size = 56.dp)
-                }
-                Spacer(Modifier.height(4.dp))
+                StoryRingAvatar(
+                    name = channel.displayName,
+                    imageUrl = channel.profileImageUrl,
+                    avatarSize = 64.dp,
+                    ringWidth = 2.5.dp,
+                    ringGap = 2.dp
+                )
+                Spacer(Modifier.height(5.dp))
                 Text(
                     text = channel.displayName,
                     color = Twick.Ink2,
@@ -420,11 +1405,10 @@ private fun LiveFollowingRow(channels: List<Channel>, onClick: (String) -> Unit)
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = formatViewers(channel.viewerCount),
-                    color = Twick.Ink3,
-                    fontSize = 9.sp,
-                    fontFamily = FontFamily.Monospace
+                ViewerCountLabel(
+                    count = channel.viewerCount,
+                    fontSize = 9,
+                    iconSize = 10.dp
                 )
             }
         }
@@ -442,7 +1426,7 @@ private fun FollowingRow(channel: Channel, isLive: Boolean, onClick: () -> Unit)
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Box {
-            AvatarCircle(name = channel.displayName, size = 44.dp)
+            AvatarCircle(name = channel.displayName, size = 44.dp, imageUrl = channel.profileImageUrl)
             if (isLive) {
                 Box(
                     modifier = Modifier
@@ -477,12 +1461,10 @@ private fun FollowingRow(channel: Channel, isLive: Boolean, onClick: () -> Unit)
         }
         if (isLive) {
             Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = formatViewers(channel.viewerCount),
-                    color = Twick.Live,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = FontFamily.Monospace
+                ViewerCountLabel(
+                    count = channel.viewerCount,
+                    fontSize = 11,
+                    iconSize = 12.dp
                 )
             }
         }
@@ -499,6 +1481,14 @@ private fun StreamCard(channel: Channel, onClick: () -> Unit) {
                 .clip(RoundedCornerShape(10.dp))
                 .background(thumbnailGradient(channel.login))
         ) {
+            if (channel.thumbnailUrl != null) {
+                AsyncImage(
+                    model = channel.thumbnailUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
             Row(
                 modifier = Modifier
@@ -516,12 +1506,11 @@ private fun StreamCard(channel: Channel, onClick: () -> Unit) {
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
                 )
-                Text(
-                    text = formatViewers(channel.viewerCount),
-                    color = Color.White,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    fontFamily = FontFamily.Monospace
+                ViewerCountLabel(
+                    count = channel.viewerCount,
+                    fontSize = 10,
+                    iconSize = 11.dp,
+                    color = Color.White
                 )
             }
 
@@ -552,7 +1541,7 @@ private fun StreamCard(channel: Channel, onClick: () -> Unit) {
                 .padding(top = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            AvatarCircle(name = channel.displayName, size = 32.dp)
+            AvatarCircle(name = channel.displayName, size = 32.dp, imageUrl = channel.profileImageUrl)
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -599,7 +1588,79 @@ private fun StreamCard(channel: Channel, onClick: () -> Unit) {
 }
 
 @Composable
-private fun AvatarCircle(name: String, size: Dp) {
+private fun StoryRingAvatar(
+    name: String,
+    imageUrl: String?,
+    avatarSize: Dp,
+    ringWidth: Dp = 2.5.dp,
+    ringGap: Dp = 2.dp
+) {
+    val ringBrush = Brush.sweepGradient(listOf(Twick.Live, Twick.Accent, Twick.Live))
+    val bgColor = Twick.Bg
+    val totalSize = avatarSize + (ringWidth + ringGap) * 2
+
+    Box(
+        modifier = Modifier
+            .size(totalSize)
+            .drawBehind {
+                val stroke = ringWidth.toPx()
+                val gap = ringGap.toPx()
+                val radius = size.minDimension / 2f
+                drawCircle(brush = ringBrush, radius = radius - stroke / 2f, style = Stroke(width = stroke))
+                drawCircle(color = bgColor, radius = radius - stroke - gap / 2f, style = Stroke(width = gap * 2))
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        AvatarCircle(name = name, size = avatarSize, imageUrl = imageUrl)
+    }
+}
+
+@Composable
+private fun LivePill(viewerText: String? = null) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(Twick.Live)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            text = "● LIVE",
+            color = Color.White,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.Monospace
+        )
+        if (viewerText != null) {
+            Text(
+                text = viewerText,
+                color = Color.White,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlatformDot(platform: String, size: Dp) {
+    val color = when (platform.lowercase()) {
+        "kick" -> Twick.Kick
+        "youtube" -> Twick.YouTube
+        else -> Twick.Twitch
+    }
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(color)
+    )
+}
+
+@Composable
+private fun AvatarCircle(name: String, size: Dp, imageUrl: String? = null) {
     val seed = name.hashCode()
     val hue = ((seed % 360) + 360) % 360
     val brush = Brush.linearGradient(
@@ -612,16 +1673,24 @@ private fun AvatarCircle(name: String, size: Dp) {
         modifier = Modifier
             .size(size)
             .clip(CircleShape)
-            .background(brush)
-            .border(2.dp, Twick.Bg, CircleShape),
+            .background(brush),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = name.take(1).uppercase(),
-            color = Color.White,
-            fontSize = (size.value * 0.4f).sp,
-            fontWeight = FontWeight.Bold
-        )
+        if (imageUrl != null) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().clip(CircleShape)
+            )
+        } else {
+            Text(
+                text = name.take(1).uppercase(),
+                color = Color.White,
+                fontSize = (size.value * 0.4f).sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
@@ -649,6 +1718,34 @@ private fun hsvColor(hue: Float, saturation: Float, value: Float): Color {
     }
     val m = value - c
     return Color(r1 + m, g1 + m, b1 + m)
+}
+
+@Composable
+private fun ViewerCountLabel(
+    count: Int,
+    fontSize: Int,
+    iconSize: Dp,
+    color: Color = Twick.Live,
+    fontWeight: FontWeight = FontWeight.SemiBold
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Person,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(iconSize)
+        )
+        Text(
+            text = formatViewers(count),
+            color = color,
+            fontSize = fontSize.sp,
+            fontWeight = fontWeight,
+            fontFamily = FontFamily.Monospace
+        )
+    }
 }
 
 private fun formatViewers(count: Int): String = when {

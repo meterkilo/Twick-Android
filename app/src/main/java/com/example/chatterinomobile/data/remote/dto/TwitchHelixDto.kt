@@ -71,3 +71,14 @@ data class HelixFollowedChannelDto(
     @SerialName("broadcaster_name") val broadcasterName: String,
     @SerialName("followed_at") val followedAt: String
 )
+
+@Serializable
+data class HelixSearchChannelDto(
+    val id: String,
+    @SerialName("broadcaster_login") val broadcasterLogin: String,
+    @SerialName("display_name") val displayName: String,
+    @SerialName("thumbnail_url") val thumbnailUrl: String? = null,
+    @SerialName("is_live") val isLive: Boolean = false,
+    @SerialName("game_name") val gameName: String? = null,
+    val title: String? = null
+)

@@ -13,5 +13,5 @@ val viewModelModule = module {
     viewModel { ChannelTabsViewModel(get()) }
     viewModel { ChatViewModel(get()) }
     viewModel { SettingsViewModel(get()) }
-    viewModel { DiscoveryViewModel(get(), get()) }
+    viewModel { DiscoveryViewModel(get(), get(), get()) }
 }
