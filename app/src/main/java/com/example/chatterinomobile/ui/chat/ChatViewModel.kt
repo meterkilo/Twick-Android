@@ -33,28 +33,12 @@ class ChatViewModel(
                 activeChannelId = channelId,
 
                 recentMessages = if (isChannelSwitch) emptyList() else recentMessages,
-                isLoadingHistory = isChannelSwitch && channelLogin != null,
                 sendStatusMessage = null,
                 sendErrorMessage = null
             )
         }
 
         if (channelLogin == null) return
-
-        if (isChannelSwitch) {
-            viewModelScope.launch {
-                val history = runCatching { chatRepository.recentHistory(channelLogin) }
-                    .getOrDefault(emptyList())
-                if (_uiState.value.activeChannelLogin == channelLogin) {
-                    update {
-                        copy(
-                            recentMessages = history.takeLast(MAX_RECENT_MESSAGES),
-                            isLoadingHistory = false
-                        )
-                    }
-                }
-            }
-        }
 
         liveCollector = viewModelScope.launch {
             chatRepository.messages.collect { message ->
@@ -114,7 +98,6 @@ class ChatViewModel(
 data class ChatUiState(
     val activeChannelLogin: String? = null,
     val activeChannelId: String? = null,
-    val isLoadingHistory: Boolean = false,
     val recentMessages: List<ChatMessage> = emptyList(),
     val sendStatusMessage: String? = null,
     val sendErrorMessage: String? = null

@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.chatterinomobile.ui.theme.Twick
 
-/** Onboarding screen 2: value-prop overview. */
 @Composable
 internal fun WelcomeScreen(onGetStarted: () -> Unit) {
     Box(
@@ -79,7 +78,7 @@ internal fun WelcomeScreen(onGetStarted: () -> Unit) {
             ValueProps()
         }
 
-        // Single CTA — no "I have an account" alternative as requested.
+
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)

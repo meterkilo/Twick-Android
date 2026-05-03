@@ -48,5 +48,26 @@ data class HelixStreamDto(
     @SerialName("viewer_count") val viewerCount: Int,
     @SerialName("started_at") val startedAt: String,
     val language: String? = null,
-    @SerialName("thumbnail_url") val thumbnailUrl: String? = null
+    @SerialName("thumbnail_url") val thumbnailUrl: String? = null,
+    val tags: List<String> = emptyList()
+)
+
+@Serializable
+data class HelixListResponseWithPagination<T>(
+    val data: List<T> = emptyList(),
+    val pagination: HelixPagination? = null,
+    val total: Int? = null
+)
+
+@Serializable
+data class HelixPagination(
+    val cursor: String? = null
+)
+
+@Serializable
+data class HelixFollowedChannelDto(
+    @SerialName("broadcaster_id") val broadcasterId: String,
+    @SerialName("broadcaster_login") val broadcasterLogin: String,
+    @SerialName("broadcaster_name") val broadcasterName: String,
+    @SerialName("followed_at") val followedAt: String
 )

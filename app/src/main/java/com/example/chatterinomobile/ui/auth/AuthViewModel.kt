@@ -50,6 +50,10 @@ class AuthViewModel(
         }
     }
 
+    fun onAuthorizeUrlConsumed() {
+        update { copy(authorizeUrl = null) }
+    }
+
     fun onRedirectIntercepted(redirectUrl: String) {
         viewModelScope.launch {
             update { copy(isLoading = true, authorizeUrl = null) }

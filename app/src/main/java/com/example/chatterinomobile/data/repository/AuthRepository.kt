@@ -19,7 +19,8 @@ interface AuthRepository {
     suspend fun clearSession()
 
     companion object {
-        const val REDIRECT_URI = "http://localhost"
+        const val REDIRECT_URI = "chatterinomobile://oauth/twitch"
+        const val OAUTH_REDIRECT_URL = "https://meterkilo.github.io/"
 
         val DEFAULT_TWITCH_SCOPES = listOf(
             "chat:read",

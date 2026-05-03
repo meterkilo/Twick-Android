@@ -11,11 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.ui.graphics.Color
 import com.example.chatterinomobile.R
 
-/**
- * Official Twitch glitch mark from the brand PNG asset.
- * [tint] recolours the logo — pass Color.Unspecified to render it in its
- * native purple, or Color.White for use on the purple gradient CTA button.
- */
 @Composable
 internal fun TwitchLogo(
     size: Dp = 24.dp,

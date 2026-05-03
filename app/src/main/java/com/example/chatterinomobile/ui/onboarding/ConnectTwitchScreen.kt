@@ -27,13 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.chatterinomobile.ui.theme.Twick
 
-/**
- * Onboarding screen 3: connect a Twitch account.
- *
- * Only Twitch is offered — no Kick, YouTube, or anonymous rows. The MVP
- * backend is Twitch-only; showing dead-end CTAs is worse than not showing
- * them at all.
- */
 @Composable
 internal fun ConnectTwitchScreen(
     onBack: () -> Unit,
@@ -99,11 +92,6 @@ internal fun ConnectTwitchScreen(
     }
 }
 
-/**
- * Visualises Twitch as the selected connect option with purple-tinted
- * background + accent border. Uses the real Twitch glitch mark logo
- * instead of a text placeholder.
- */
 @Composable
 private fun TwitchAccountCard() {
     Row(
@@ -151,11 +139,6 @@ private fun TwitchAccountCard() {
     }
 }
 
-/**
- * Scope preview panel shown before the OAuth hand-off so the user sees what
- * they're granting *before* the browser opens. Matches the MVP scope list in
- * CLAUDE.md: chat:read, chat:edit, user:read:follows.
- */
 @Composable
 private fun ScopeNote() {
     val scopes = listOf(

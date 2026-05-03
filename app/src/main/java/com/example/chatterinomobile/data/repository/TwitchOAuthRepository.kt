@@ -47,7 +47,7 @@ class TwitchOAuthRepository(
 
         return Uri.parse("$AUTHORIZE_URL").buildUpon()
             .appendQueryParameter("client_id", clientId)
-            .appendQueryParameter("redirect_uri", AuthRepository.REDIRECT_URI)
+            .appendQueryParameter("redirect_uri", AuthRepository.OAUTH_REDIRECT_URL)
             .appendQueryParameter("response_type", "token")
             .appendQueryParameter("scope", scopes.joinToString(" "))
             .appendQueryParameter("force_verify", "true")

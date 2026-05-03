@@ -1,7 +1,9 @@
 package com.example.chatterinomobile.data.remote.api
 
 import com.example.chatterinomobile.data.remote.dto.HelixBadgeSetDto
+import com.example.chatterinomobile.data.remote.dto.HelixFollowedChannelDto
 import com.example.chatterinomobile.data.remote.dto.HelixListResponse
+import com.example.chatterinomobile.data.remote.dto.HelixListResponseWithPagination
 import com.example.chatterinomobile.data.remote.dto.HelixStreamDto
 import com.example.chatterinomobile.data.remote.dto.HelixUserDto
 import com.example.chatterinomobile.data.repository.AuthRepository
@@ -45,6 +47,31 @@ class TwitchHelixApi(
         val response: HelixListResponse<HelixBadgeSetDto> =
             httpClient.get("$BASE_URL/chat/badges/global") {
                 applyAuth(clientId, token)
+            }.body()
+        return response.data
+    }
+
+
+    suspend fun getFollowedChannels(userId: String, limit: Int = 100): List<HelixFollowedChannelDto> {
+        val token = authRepository.getAccessToken()
+        val clientId = authRepository.getClientId()
+        val response: HelixListResponseWithPagination<HelixFollowedChannelDto> =
+            httpClient.get("$BASE_URL/channels/followed") {
+                applyAuth(clientId, token)
+                parameter("user_id", userId)
+                parameter("first", limit.coerceIn(1, 100))
+            }.body()
+        return response.data
+    }
+
+
+    suspend fun getTopStreams(limit: Int = 20): List<HelixStreamDto> {
+        val token = authRepository.getAccessToken()
+        val clientId = authRepository.getClientId()
+        val response: HelixListResponseWithPagination<HelixStreamDto> =
+            httpClient.get("$BASE_URL/streams") {
+                applyAuth(clientId, token)
+                parameter("first", limit.coerceIn(1, 100))
             }.body()
         return response.data
     }

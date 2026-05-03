@@ -1,6 +1,5 @@
 package com.example.chatterinomobile.data.repository
 
-import com.example.chatterinomobile.data.local.MessageHistoryStore
 import com.example.chatterinomobile.data.model.ChatMessage
 import com.example.chatterinomobile.data.model.Channel
 import com.example.chatterinomobile.data.model.ChannelHydrationState
@@ -25,7 +24,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,8 +40,7 @@ class ChatRepositoryImpl(
     private val enricher: MessageEnricher,
     private val channelRepository: ChannelRepository,
     private val badgeRepository: BadgeRepository,
-    private val emoteRepository: EmoteRepository,
-    private val historyStore: MessageHistoryStore
+    private val emoteRepository: EmoteRepository
 ) : ChatRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -111,51 +108,12 @@ class ChatRepositoryImpl(
         ircClient.incoming
             .mapNotNull { raw -> mapper.map(raw) }
             .map { msg -> enricher.enrich(msg) }
-            .onEach { msg -> historyStore.enqueue(msg) }
             .shareIn(scope, SharingStarted.Eagerly, replay = 0)
 
     override val moderationEvents: Flow<ModerationEvent> =
         ircClient.incoming
             .mapNotNull { raw -> moderationMapper.map(raw) }
-            .onEach { event -> mirrorModerationToHistory(event) }
             .shareIn(scope, SharingStarted.Eagerly, replay = 0)
-
-    override suspend fun recentHistory(channelLogin: String, limit: Int): List<ChatMessage> {
-        val normalizedLogin = channelLogin.lowercase().removePrefix("#")
-
-        val channel = resolveChannel(normalizedLogin) ?: return emptyList()
-        return historyStore.recent(channel.id, limit)
-    }
-
-    private fun mirrorModerationToHistory(event: ModerationEvent) {
-        scope.launch {
-            runCatching {
-                when (event) {
-                    is ModerationEvent.ChatCleared -> {
-                        val channel = channelCacheByLogin[event.channelLogin]
-                            ?: channelRepository.getChannelByLogin(event.channelLogin)
-                            ?: return@runCatching
-                        historyStore.deleteByChannel(channel.id)
-                    }
-                    is ModerationEvent.UserBanned -> {
-                        val channel = channelCacheByLogin[event.channelLogin]
-                            ?: channelRepository.getChannelByLogin(event.channelLogin)
-                            ?: return@runCatching
-                        historyStore.deleteByChannelAndAuthor(channel.id, event.targetUserId)
-                    }
-                    is ModerationEvent.UserTimedOut -> {
-                        val channel = channelCacheByLogin[event.channelLogin]
-                            ?: channelRepository.getChannelByLogin(event.channelLogin)
-                            ?: return@runCatching
-                        historyStore.deleteByChannelAndAuthor(channel.id, event.targetUserId)
-                    }
-                    is ModerationEvent.MessageDeleted -> {
-                        historyStore.deleteByMessageId(event.targetMessageId)
-                    }
-                }
-            }
-        }
-    }
 
     override suspend fun connect() {
         shouldReconnect = true

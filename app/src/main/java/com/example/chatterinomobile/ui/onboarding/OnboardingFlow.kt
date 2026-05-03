@@ -15,20 +15,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 
-/**
- * Stateless coordinator for the onboarding sequence. Kept deliberately simple —
- * onboarding is linear (Splash → Welcome → Connect → Sync → app), with one back
- * affordance on Connect/Sync to step backwards. We persist the step in
- * `rememberSaveable` so a config change mid-flow doesn't bounce the user back to
- * the splash.
- *
- * The flow is wired with two callbacks rather than owning auth/sync state:
- *   - `onConnectTwitch`: handed off to AuthViewModel.startLogin so the platform
- *     OAuth WebView takes over. Onboarding doesn't care how that resolves; the
- *     parent decides whether to advance to the sync screen.
- *   - `onFinish`: emitted once the user dismisses the sync screen, signalling
- *     the parent to swap onboarding out for the main app shell.
- */
 @Composable
 fun OnboardingFlow(
     isLoggedIn: Boolean,
@@ -37,22 +23,22 @@ fun OnboardingFlow(
 ) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.Splash) }
 
-    // Auto-advance the splash on first composition. Pure UX delay — the real
-    // session check happens in AuthViewModel and is already in flight before
-    // we render. 1200ms is long enough for the gradient + dot blink to land.
+
+
+
     LaunchedEffect(Unit) {
         if (step == OnboardingStep.Splash) {
             delay(1200)
-            // If the user is already authed (returning user, token still valid),
-            // skip straight past the welcome+connect screens to the sync stage.
+
+
             step = if (isLoggedIn) OnboardingStep.EmoteSync else OnboardingStep.Welcome
         }
     }
 
-    // If auth completes mid-flow (user returns from the OAuth WebView), advance
-    // automatically. We only do this from Connect → Sync; we don't want to skip
-    // the Welcome screen for first-time users just because the token survived
-    // a process restart.
+
+
+
+
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn && step == OnboardingStep.ConnectTwitch) {
             step = OnboardingStep.EmoteSync

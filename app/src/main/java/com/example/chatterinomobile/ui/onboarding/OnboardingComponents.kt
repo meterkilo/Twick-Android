@@ -27,12 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.chatterinomobile.ui.theme.Twick
 
-// ─── Brand mark ──────────────────────────────────────────────────────────────
-
-/**
- * Purple-gradient square with the app glyph (two white bars). Shared between
- * SplashScreen (84dp) and WelcomeScreen (48dp).
- */
 @Composable
 internal fun BrandMark(
     size: Dp,
@@ -66,9 +60,6 @@ internal fun BrandMark(
     }
 }
 
-// ─── App bar ─────────────────────────────────────────────────────────────────
-
-/** Back-arrow bar used on Connect and Sync screens. Title is optional. */
 @Composable
 internal fun OnboardingAppBar(
     onBack: () -> Unit,
@@ -109,12 +100,6 @@ internal fun OnboardingAppBar(
     }
 }
 
-// ─── Buttons ─────────────────────────────────────────────────────────────────
-
-/**
- * Inverted (white-on-bg) primary CTA — used on Welcome and EmoteSync screens
- * where we don't want to compete with the Twitch brand colour.
- */
 @Composable
 internal fun PrimaryButton(
     text: String,
@@ -139,10 +124,6 @@ internal fun PrimaryButton(
     }
 }
 
-/**
- * Purple-gradient CTA — exclusively for Twitch OAuth actions so the brand
- * colour is reserved for that single entry point.
- */
 @Composable
 internal fun TwitchPrimaryButton(
     text: String,

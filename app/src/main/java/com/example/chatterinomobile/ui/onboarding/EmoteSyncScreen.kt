@@ -42,13 +42,6 @@ import androidx.compose.ui.unit.sp
 import com.example.chatterinomobile.ui.theme.Twick
 import kotlinx.coroutines.delay
 
-/**
- * Final onboarding step. Today this is fully presentational — the real emote
- * fetch happens lazily on first channel join, not eagerly on login. We mock
- * the sync UX with a short staggered timer so the user sees something happen
- * after pressing Connect; once Coil + the eager hydration story land we'll
- * wire this to actual progress signals.
- */
 @Composable
 internal fun EmoteSyncScreen(
     onBack: () -> Unit,
@@ -249,9 +242,9 @@ private fun EmotePreviewRow() {
 
 @Composable
 private fun EmoteChip(code: String) {
-    // Hash the code into a stable hue so each placeholder square reads as a
-    // distinct emote instead of a row of identical grey boxes. Throwaway
-    // until the real emote bytes flow through Coil.
+
+
+
     val hue = ((code.hashCode() ushr 1) % 360).toFloat()
     val color = Color.hsv(hue, 0.5f, 0.7f)
     Box(

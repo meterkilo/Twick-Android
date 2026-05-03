@@ -10,14 +10,6 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
-
-    resolutionStrategy {
-        eachPlugin {
-            if (requested.id.id == "app.cash.sqldelight") {
-                useModule("app.cash.sqldelight:gradle-plugin:${requested.version}")
-            }
-        }
-    }
 }
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"

@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.chatterinomobile.ui.theme.Twick
 
-/** Onboarding screen 1: brand splash shown briefly on first launch. */
 @Composable
 internal fun SplashScreen() {
     Box(

@@ -23,8 +23,6 @@ interface ChatRepository {
 
     val channelHydrationStates: StateFlow<Map<String, ChannelHydrationState>>
 
-    suspend fun recentHistory(channelLogin: String, limit: Int = 500): List<ChatMessage>
-
     suspend fun connect()
 
     suspend fun joinChannel(channelLogin: String)
