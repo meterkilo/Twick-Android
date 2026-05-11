@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="800dp"
+    android:height="800dp"
+    android:viewportWidth="800"
+    android:viewportHeight="800">
+
+    <!-- Purple rounded-rect background -->
+    <path
+        android:fillColor="#9146FF"
+        android:pathData="M140,0 L660,0 Q800,0 800,140 L800,660 Q800,800 660,800 L140,800 Q0,800 0,660 L0,140 Q0,0 140,0 Z" />
+
+    <!-- Black speech bubble body (outer shape) -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M220,140 L620,140 L620,540 L520,540 L430,640 L430,540 L220,540 Z" />
+
+    <!-- White face area (inner cutout) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M280,200 L560,200 L560,480 L490,480 L430,550 L430,480 L280,480 Z" />
+
+    <!-- Left eye -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M360,290 L360,410 L400,410 L400,290 Z" />
+
+    <!-- Right eye -->
+    <path
+        android:fillColor="#000000"
+        android:pathData="M440,290 L440,410 L480,410 L480,290 Z" />
+</vector>
