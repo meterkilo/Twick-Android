@@ -53,8 +53,7 @@ fun ChatList(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(vertical = 6.dp),
     currentUserLogin: String? = null,
-    paintsByUserId: PersistentMap<String, Paint> = persistentHashMapOf(),
-    onReplyToMessage: (ChatMessage) -> Unit = {}
+    paintsByUserId: PersistentMap<String, Paint> = persistentHashMapOf()
 ) {
     val state = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -115,8 +114,7 @@ fun ChatList(
                 contentType = { it.contentTypeKey() }
             ) { message ->
                 val deleted = message.id in deletedIds
-                val highlight = !message.isHistorical &&
-                    currentUserLogin != null &&
+                val highlight = currentUserLogin != null &&
                     message.fragment.any { it is MessageFragment.Mention &&
                         it.username.equals(currentUserLogin, ignoreCase = true) }
                 ChatMessageRow(
@@ -124,12 +122,7 @@ fun ChatList(
                     showTimestamp = showTimestamp,
                     deleted = deleted,
                     highlight = highlight,
-                    paintOverride = paintsByUserId[message.author.id],
-                    onReply = if (!deleted && message.Type !is MessageType.System) {
-                        { onReplyToMessage(message) }
-                    } else {
-                        null
-                    }
+                    paintOverride = paintsByUserId[message.author.id]
                 )
             }
         }

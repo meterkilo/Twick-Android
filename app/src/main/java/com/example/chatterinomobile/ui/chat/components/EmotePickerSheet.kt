@@ -45,7 +45,6 @@ import androidx.compose.ui.unit.sp
 import com.example.chatterinomobile.data.model.Emote
 import com.example.chatterinomobile.data.model.EmoteProvider
 import com.example.chatterinomobile.data.repository.EmoteCatalog
-import com.example.chatterinomobile.ui.common.rememberSoftHaptic
 import com.example.chatterinomobile.ui.theme.Twick
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,10 +59,9 @@ fun EmotePickerSheet(
 
     val tabs = remember(catalog) {
         listOfNotNull(
-            tabFor("Channel", catalog.channel.filterNot { it.provider == EmoteProvider.TWITCH }.cachedFirst()),
-            tabFor("Subs", catalog.channelByProvider[EmoteProvider.TWITCH].orEmpty().cachedFirst()),
-            tabFor("Twitch", catalog.globalByProvider[EmoteProvider.TWITCH].orEmpty().cachedFirst()),
-            tabFor("Global", catalog.global.filterNot { it.provider == EmoteProvider.TWITCH }.cachedFirst())
+            tabFor("Subs", catalog.twitch),
+            tabFor("Channel", catalog.channel.filterNot { it.provider == EmoteProvider.TWITCH }),
+            tabFor("Global", catalog.global.filterNot { it.provider == EmoteProvider.TWITCH })
         )
     }
 
@@ -133,12 +131,6 @@ private fun tabFor(label: String, emotes: List<Emote>): EmotePickerTab? {
     if (emotes.isEmpty()) return null
     return EmotePickerTab(label = label, emotes = emotes)
 }
-
-private fun List<Emote>.cachedFirst(): List<Emote> =
-    sortedWith(
-        compareByDescending<Emote> { it.aspectRatio != null }
-            .thenBy { it.name.lowercase() }
-    )
 
 @Composable
 private fun EmotePickerHeader() {
@@ -245,17 +237,13 @@ private fun EmoteTabChip(
     selected: Boolean,
     onClick: () -> Unit
 ) {
-    val haptic = rememberSoftHaptic()
     val bg = if (selected) GlassAccent else GlassPanel
     val fg = if (selected) Twick.Ink else Twick.Ink2
     Box(
         modifier = Modifier
             .background(bg, RoundedCornerShape(8.dp))
             .border(1.dp, if (selected) Twick.AccentSoft else GlassStroke, RoundedCornerShape(8.dp))
-            .clickable {
-                if (!selected) haptic()
-                onClick()
-            }
+            .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 5.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -290,16 +278,12 @@ private fun EmoteGrid(
 
 @Composable
 private fun EmoteGridCell(emote: Emote, onClick: () -> Unit) {
-    val haptic = rememberSoftHaptic()
     Column(
         modifier = Modifier
             .size(width = 62.dp, height = 58.dp)
             .background(GlassCell, RoundedCornerShape(8.dp))
             .border(1.dp, GlassStroke, RoundedCornerShape(8.dp))
-            .clickable {
-                haptic()
-                onClick()
-            }
+            .clickable(onClick = onClick)
             .padding(5.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center

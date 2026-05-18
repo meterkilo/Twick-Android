@@ -4,7 +4,6 @@ import com.example.chatterinomobile.BuildConfig
 import com.example.chatterinomobile.data.remote.api.BttvApi
 import com.example.chatterinomobile.data.remote.api.ChatterinoApi
 import com.example.chatterinomobile.data.remote.api.FfzApi
-import com.example.chatterinomobile.data.remote.api.RecentMessagesApi
 import com.example.chatterinomobile.data.remote.api.SevenTvApi
 import com.example.chatterinomobile.data.remote.api.SevenTvCosmeticsApi
 import com.example.chatterinomobile.data.remote.api.TwitchHelixApi
@@ -55,7 +54,6 @@ val networkModule = module {
     single { BttvApi(get()) }
     single { FfzApi(get()) }
     single { ChatterinoApi(get()) }
-    single { RecentMessagesApi(get()) }
 
     single { SevenTvCosmeticsApi(get()) }
     single { TwitchOAuthApi(get()) }

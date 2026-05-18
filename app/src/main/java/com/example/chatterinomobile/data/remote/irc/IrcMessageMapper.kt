@@ -78,7 +78,6 @@ class IrcMessageMapper(
             fragment = fragments,
             badges = badges,
             timestamp = tmiTs,
-            isHistorical = raw.isHistorical(),
             Type = messageType
         )
     }
@@ -244,7 +243,6 @@ class IrcMessageMapper(
             fragment = fragments,
             badges = emptyList(),
             timestamp = tmiTs,
-            isHistorical = raw.isHistorical(),
             Type = MessageType.System(systemText)
         )
     }
@@ -267,13 +265,9 @@ class IrcMessageMapper(
             fragment = emptyList(),
             badges = emptyList(),
             timestamp = tmiTs,
-            isHistorical = raw.isHistorical(),
             Type = MessageType.System(text)
         )
     }
-
-    private fun IrcMessage.isHistorical(): Boolean =
-        tags["historical"] == "1"
 
     companion object {
 
